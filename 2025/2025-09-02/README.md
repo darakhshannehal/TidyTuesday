@@ -1,6 +1,7 @@
 # Mapping Cannibals
 
 This project explores documented cases of cannibalism among **Australian frogs**, focusing on two species: the Cane Toad (**Rhinella marina**) and the Green and Golden Bell Frog (**Litoria aurea**).
+![](frog_map.png)
 
 ### R Packages Used
 
