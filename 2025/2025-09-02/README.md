@@ -16,4 +16,4 @@ This project explores documented cases of cannibalism among **Australian frogs**
 
 ### Data
 
-The FrogID dataset \| \[\] (https://github.com/rfordatascience/tidytuesday/tree/main/data/2025/2025-09-02)
+**The FrogID dataset** | [#TidyTuesday (2025-09-02)](https://github.com/rfordatascience/tidytuesday/tree/main/data/2025/2025-09-02)
