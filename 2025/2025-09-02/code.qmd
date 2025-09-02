@@ -188,8 +188,8 @@ ggplot() +
 # Save plot
 ggsave(
   filename = "frog_map.png",
-  width = 10, #  Width in inches
-  height = 8, #  Height in inches
+  width = 7, #  Width in inches
+  height = 5, #  Height in inches
   dpi = 300, #  High-resolution
   bg = "white" # Ensures white background, as theme_minimal() uses a transparent background by default
 )
