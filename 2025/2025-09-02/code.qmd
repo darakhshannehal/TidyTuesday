@@ -1,5 +1,197 @@
 ---
-title: "Untitled"
+title: "Mapping Cannabils"
 format: html
 ---
 
+```{r}
+# Load required libraries
+library(tidyverse) # Data manipulation and plotting
+library(skimr) # Quick data summaries
+library(rnaturalearth) # Country boundaries
+library(rnaturalearthdata)
+library(sf) # Spatial data handling
+library(RColorBrewer) # Color palettes
+library(ggtext) # Text formatting in ggplot
+
+```
+
+```{r}
+# Load Datasets
+frogID_data <- readr::read_csv(
+  'https://raw.githubusercontent.com/rfordatascience/tidytuesday/main/data/2025/2025-09-02/frogID_data.csv'
+)
+frog_names <- readr::read_csv(
+  'https://raw.githubusercontent.com/rfordatascience/tidytuesday/main/data/2025/2025-09-02/frog_names.csv'
+)
+
+```
+
+## EDA
+
+```{r}
+glimpse(frogID_data) # For data types
+glimpse(frog_names)
+
+skim(frogID_data) # Summary statistics
+```
+
+```{r}
+# Check for duplicate
+sum(duplicated(frogID_data))
+
+sum(duplicated(frog_names))
+
+```
+
+```{r}
+frog_names %>% count(scientificName) %>% filter(n > 1) # duplicate species
+
+frog_names |> filter(scientificName == "Uperoleia mjobergii") # Duplicate
+
+frog_names_clean <- frog_names %>%
+  distinct(scientificName, .keep_all = TRUE) # Remove duplicate species entry
+
+```
+
+```{r}
+# Join data
+joined_data = frogID_data |>
+  left_join(frog_names_clean, by = "scientificName")
+```
+
+```{r}
+
+# Remove missing values in tribe and subfamily columns
+subset_clean <- joined_data %>%
+  filter(!is.na(tribe), !is.na(subfamily)) |>
+  select("decimalLatitude":"tribe") # Keep only relevant columns
+
+```
+
+```{r}
+# Focus on Cane Toad and Green Bell Frog
+cannabil_data = subset_clean |>
+  filter(scientificName %in% c("Litoria aurea", "Rhinella marina"))
+```
+
+## Preparing for Visualization
+
+```{r}
+
+# Convert frog data to spatial format
+cannabil_sf <- st_as_sf(
+  cannabil_data,
+  coords = c("decimalLongitude", "decimalLatitude"),
+  crs = 4326 #
+)
+
+# Get Australia boundary
+australia <- ne_countries(scale = "medium", returnclass = "sf") %>%
+  filter(admin == "Australia")
+
+```
+
+```{r}
+# Custom palette
+# display.brewer.all()  #View all available RColorBrewer palettes
+
+# Extract Set1 palette
+set1_colors <- brewer.pal(n = 9, name = "Set1")
+
+# Select 6th and 3rd colors
+custom_palette <- setNames(
+  set1_colors[c(3, 7)],
+  c("Litoria aurea", "Rhinella marina")
+)
+```
+
+```{r}
+# Custom theme
+custom_theme = theme_minimal() +
+  theme(
+    text = element_text(family = "Verdana"), #Global Verdana font
+    legend.justification = c("right", "bottom"),
+    legend.text = ggtext::element_markdown(
+      size = 11,
+      family = "Verdana",
+      margin = margin(t = 10)
+    ),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.title = element_blank(),
+    axis.text = element_blank(),
+    axis.ticks = element_blank(),
+    plot.title = element_text(
+      size = 17,
+      face = "bold",
+      margin = margin(t = 20, b = 10)
+    ),
+    plot.subtitle = ggtext::element_markdown(
+      size = 15,
+      margin = margin(t = 10, b = 15)
+    ),
+    plot.caption = element_text(
+      size = 12,
+      face = "italic",
+      hjust = 0,
+      margin = margin(t = 10, b = 20)
+    )
+  )
+
+```
+
+## Create Map
+
+```{r}
+
+subtitle <- paste0(
+  "<span style='color:#8B4513;'><b>Cane Toad</b></span> in Australia exhibit cannibalism, particularly in tadpole stages,<br>",
+  "and a rare event documented a female <span style='color:#228B22;'><b>Green and Golden Bell Frog</b></span><br>",
+  "attempting to eat an adult male of the same species, possibly due to his <br> displeasing mating call."
+)
+
+ggplot() +
+  geom_sf(
+    data = australia,
+    fill = "snow",
+    color = "cornflowerblue",
+    linewidth = 0.75
+  ) +
+  geom_sf(
+    data = cannabil_sf,
+    aes(color = scientificName),
+    size = 4,
+    alpha = 0.4
+  ) +
+  scale_color_manual(
+    values = custom_palette,
+    labels = c(
+      "<b>Litoria aurea</b>",
+      "<b>Rhinella marina</b>"
+    ),
+    guide = guide_legend(
+      title = NULL, # No legend title
+      override.aes = list(size = 4, alpha = 0.8)
+    )
+  ) +
+  coord_sf(xlim = c(112, 154), ylim = c(-44, -10), expand = FALSE) + # Zoom to Australia
+  labs(
+    title = "Blood of the tribe is thicker than the water in the womb. \n(But, what about australian frogs!?)",
+    subtitle = subtitle,
+    caption = "Data: Rowley JJL, & Callaghan CT (2020) The FrogID dataset | Visualization: Darakhshan Nehal"
+  ) +
+  custom_theme
+
+```
+
+```{r}
+# Save plot
+ggsave(
+  filename = "frog_map.png",
+  width = 10, #  Width in inches
+  height = 8, #  Height in inches
+  dpi = 300, #  High-resolution
+  bg = "white" # Ensures white background, as theme_minimal() uses a transparent background by default
+)
+
+```
