@@ -12,18 +12,16 @@ library(rnaturalearthdata)
 library(sf) # Spatial data handling
 library(RColorBrewer) # Color palettes
 library(ggtext) # Text formatting in ggplot
-
 ```
 
 ```{r}
 # Load Datasets
 frogID_data <- readr::read_csv(
-  'https://raw.githubusercontent.com/rfordatascience/tidytuesday/main/data/2025/2025-09-02/frogID_data.csv'
+  "https://raw.githubusercontent.com/rfordatascience/tidytuesday/main/data/2025/2025-09-02/frogID_data.csv"
 )
 frog_names <- readr::read_csv(
-  'https://raw.githubusercontent.com/rfordatascience/tidytuesday/main/data/2025/2025-09-02/frog_names.csv'
+  "https://raw.githubusercontent.com/rfordatascience/tidytuesday/main/data/2025/2025-09-02/frog_names.csv"
 )
-
 ```
 
 ## EDA
@@ -40,44 +38,41 @@ skim(frogID_data) # Summary statistics
 sum(duplicated(frogID_data))
 
 sum(duplicated(frog_names))
-
 ```
 
 ```{r}
-frog_names %>% count(scientificName) %>% filter(n > 1) # duplicate species
+frog_names %>%
+  count(scientificName) %>%
+  filter(n > 1) # duplicate species
 
 frog_names |> filter(scientificName == "Uperoleia mjobergii") # Duplicate
 
 frog_names_clean <- frog_names %>%
   distinct(scientificName, .keep_all = TRUE) # Remove duplicate species entry
-
 ```
 
 ```{r}
 # Join data
-joined_data = frogID_data |>
+joined_data <- frogID_data |>
   left_join(frog_names_clean, by = "scientificName")
 ```
 
 ```{r}
-
 # Remove missing values in tribe and subfamily columns
 subset_clean <- joined_data %>%
   filter(!is.na(tribe), !is.na(subfamily)) |>
   select("decimalLatitude":"tribe") # Keep only relevant columns
-
 ```
 
 ```{r}
 # Focus on Cane Toad and Green Bell Frog
-cannabil_data = subset_clean |>
+cannabil_data <- subset_clean |>
   filter(scientificName %in% c("Litoria aurea", "Rhinella marina"))
 ```
 
 ## Preparing for Visualization
 
 ```{r}
-
 # Convert frog data to spatial format
 cannabil_sf <- st_as_sf(
   cannabil_data,
@@ -88,7 +83,6 @@ cannabil_sf <- st_as_sf(
 # Get Australia boundary
 australia <- ne_countries(scale = "medium", returnclass = "sf") %>%
   filter(admin == "Australia")
-
 ```
 
 ```{r}
@@ -107,9 +101,9 @@ custom_palette <- setNames(
 
 ```{r}
 # Custom theme
-custom_theme = theme_minimal() +
+custom_theme <- theme_minimal() +
   theme(
-    text = element_text(family = "Verdana"), #Global Verdana font
+    text = element_text(family = "Verdana"), # Global Verdana font
     legend.justification = c("right", "bottom"),
     legend.text = ggtext::element_markdown(
       size = 11,
@@ -137,13 +131,11 @@ custom_theme = theme_minimal() +
       margin = margin(t = 10, b = 20)
     )
   )
-
 ```
 
 ## Create Map
 
 ```{r}
-
 subtitle <- paste0(
   "<span style='color:#8B4513;'><b>Cane Toad</b></span> in Australia exhibit cannibalism, particularly in tadpole stages,<br>",
   "and a rare event documented a female <span style='color:#228B22;'><b>Green and Golden Bell Frog</b></span><br>",
@@ -181,7 +173,6 @@ ggplot() +
     caption = "Data: Rowley JJL, & Callaghan CT (2020) The FrogID dataset | Visualization: Darakhshan Nehal"
   ) +
   custom_theme
-
 ```
 
 ```{r}
@@ -193,5 +184,4 @@ ggsave(
   dpi = 300, #  High-resolution
   bg = "white" # Ensures white background, as theme_minimal() uses a transparent background by default
 )
-
 ```
