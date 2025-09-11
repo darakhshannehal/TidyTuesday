@@ -3,7 +3,7 @@
 This visualization reflects my personal travel bucket list, built using visa access data for Indian passport holders. I’ve mapped out the countries I hope to visit.
 ![](bucket_list_map.png)
 
-### R Packages Used
+## R Packages Used
 
 | Package         | Purpose                                                  |
 |---------------------|---------------------------------------------------|
