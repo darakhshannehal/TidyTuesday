@@ -1,0 +1,180 @@
+---
+title: "Bucket List Map"
+format: html
+---
+
+```{r}
+if (!requireNamespace("pacman", quietly = TRUE)) {
+  install.packages("pacman")
+}
+
+# Load required packages (install if missing)
+pacman::p_load(
+  tidyverse, # Data wrangling, plotting, modeling
+  jsonlite, # JSON parsing
+  sf, # Spatial data handling
+  rnaturalearth # Country-level shapefiles
+)
+```
+
+```{r}
+# Load Data
+country_lists <- readr::read_csv(
+  "https://raw.githubusercontent.com/rfordatascience/tidytuesday/main/data/2025/2025-09-09/country_lists.csv"
+)
+rank_by_year <- readr::read_csv(
+  "https://raw.githubusercontent.com/rfordatascience/tidytuesday/main/data/2025/2025-09-09/rank_by_year.csv"
+)
+```
+
+```{r}
+# Safe JSON parser to handle nested structures
+safe_parse <- function(x) {
+  tryCatch(
+    {
+      parsed <- fromJSON(x)
+      if (is.data.frame(parsed)) {
+        as_tibble(parsed)
+      } else if (
+        is.list(parsed) && length(parsed) > 0 && is.data.frame(parsed[[1]])
+      ) {
+        as_tibble(parsed[[1]])
+      } else {
+        tibble()
+      }
+    },
+    error = function(e) tibble()
+  )
+}
+
+# Columns containing nested visa data
+json_cols <- c(
+  "visa_required",
+  "visa_online",
+  "visa_on_arrival",
+  "visa_free_access",
+  "electronic_travel_authorisation"
+)
+
+# Parse each JSON column
+country_lists_parsed <- country_lists %>%
+  mutate(across(all_of(json_cols), ~ map(.x, safe_parse)))
+```
+
+
+```{r}
+# Extract visa data for Indian passport
+india <- country_lists_parsed |>
+  filter(country == "India")
+
+# Combine all visa types into one tibble
+india_data <- bind_rows(
+  india$visa_required[[1]] |> mutate(type = "visa_required"),
+  india$visa_online[[1]] |> mutate(type = "visa_online"),
+  india$visa_on_arrival[[1]] |> mutate(type = "visa_on_arrival"),
+  india$visa_free_access[[1]] |> mutate(type = "visa_free_access"),
+  india$electronic_travel_authorisation[[1]] |>
+    mutate(type = "electronic_travel_authorisation")
+)
+```
+
+```{r}
+# ISO codes for bucket list destinations
+my_destinations <- c("LU", "GR", "ID", "SC", "KE", "IS", "OM", "MY")
+
+# Filter visa info for selected countries
+my_visa_info <- india_data |>
+  filter(code %in% my_destinations)
+```
+
+### Visualisation
+```{r}
+# Load world map
+world_sf <- ne_countries(scale = "medium", returnclass = "sf") |>
+  filter(
+    !continent %in% c("North America", "South America", "Antarctica")
+  )
+
+# Filter bucket list countries
+bucket_sf <- world_sf |>
+  filter(
+    name_long %in%
+      c(
+        "Luxembourg",
+        "Greece",
+        "Indonesia",
+        "Seychelles",
+        "Kenya",
+        "Iceland",
+        "Oman",
+        "Malaysia"
+      )
+  )
+```
+
+```{r}
+# Create Custom theme
+custom_theme <- theme_minimal() +
+  theme(
+    text = element_text(family = "Verdana"), # Global Verdana font
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.title = element_blank(),
+    axis.text = element_blank(),
+    axis.ticks = element_blank(),
+    plot.title = element_text(
+      size = 17,
+      face = "bold",
+      hjust = 0.5,
+      margin = margin(t = 20, b = 10)
+    ),
+    plot.subtitle = element_text(
+      size = 15,
+      hjust = 0.5
+    ),
+    plot.caption = element_text(
+      size = 12,
+      hjust = 0.5,
+      margin = margin(t = 10, b = 20)
+    )
+  )
+```
+
+```{r}
+# Create map
+ggplot() +
+  geom_sf(data = world_sf, fill = "wheat", color = "snow1", linewidth = 0.25) +
+  geom_sf(
+    data = bucket_sf,
+    fill = "rosybrown1",
+    color = "thistle3",
+    linewidth = 0.75
+  ) +
+  geom_sf_text(
+    data = bucket_sf,
+    aes(label = name_long),
+    fontface = "bold",
+    family = "Verdana",
+    color = "grey4",
+    size = 4,
+    nudge_y = -5.2
+  ) +
+  coord_sf(xlim = c(-30, 150), ylim = c(-55, 80), expand = FALSE) +
+  labs(
+    title = "Please, Do Not Jinx My Bucket List",
+    subtitle = "A lazy blob maintaining a list inspired by an obnoxious number of travel vlogs",
+    caption = "Data: Henley Passport Index API | Visualization: Darakhshan Nehal"
+  ) +
+  custom_theme
+```
+
+```{r}
+# Save plot
+ggsave(
+  filename = "bucket_list_map.png",
+  width = 9.5, #  Width in inches
+  height = 8, #  Height in inches
+  dpi = 300, #  For High-resolution
+  bg = "white" # Ensures white background, as theme_minimal() uses a transparent background by default
+)
+```
