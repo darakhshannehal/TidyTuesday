@@ -13,7 +13,8 @@ pacman::p_load(
   tidyverse, # Data wrangling, plotting, modeling
   jsonlite, # JSON parsing
   sf, # Spatial data handling
-  rnaturalearth # Country-level shapefiles
+  rnaturalearth, # Country-level shapefiles
+  RColorBrewer # Color palette
 )
 ```
 
@@ -29,10 +30,15 @@ rank_by_year <- readr::read_csv(
 
 ```{r}
 # Safe JSON parser to handle nested structures
+# This is a custom function that safely converts JSON data into a format R can use (a tibble).
+# Prevents the script from crashing if the data is messy.
 safe_parse <- function(x) {
+  # `tryCatch` is an error-handling function. If an error occurs, it runs the code in `error`.
   tryCatch(
     {
+      # `fromJSON` from `jsonlite` converts the text into a structured R object.
       parsed <- fromJSON(x)
+      # These `if` statements check the structure of the data and convert it to a `tibble`.
       if (is.data.frame(parsed)) {
         as_tibble(parsed)
       } else if (
@@ -40,10 +46,11 @@ safe_parse <- function(x) {
       ) {
         as_tibble(parsed[[1]])
       } else {
+        # If no data is found, it returns an empty table (`tibble`).
         tibble()
       }
     },
-    error = function(e) tibble()
+    error = function(e) tibble() # If there's an error, return an empty table.
   )
 }
 
@@ -87,7 +94,7 @@ my_visa_info <- india_data |>
   filter(code %in% my_destinations)
 ```
 
-### Visualisation
+###  Prepare for Visualisation
 ```{r}
 # Load world map
 world_sf <- ne_countries(scale = "medium", returnclass = "sf") |>
@@ -113,9 +120,24 @@ bucket_sf <- world_sf |>
 ```
 
 ```{r}
+# Join visa info with spatial data
+# Join the 'iso_a2' column from the map data with the 'code' column from your visa info.
+bucket_sf_with_visa <- bucket_sf |>
+  left_join(
+    my_visa_info,
+    by = c("iso_a2" = "code"),
+    suffix = c("_map", "_visa")
+  )
+```
+
+```{r}
 # Create Custom theme
 custom_theme <- theme_minimal() +
   theme(
+    legend.position = "bottom",
+    legend.title.position = "top",
+    legend.title = element_text(size = 14, hjust = 0.5),
+    legend.text = element_text(size = 12),
     text = element_text(family = "Verdana"), # Global Verdana font
     panel.grid.major = element_blank(),
     panel.grid.minor = element_blank(),
@@ -138,26 +160,49 @@ custom_theme <- theme_minimal() +
       margin = margin(t = 10, b = 20)
     )
   )
+
+# Creates a custom palette
+## Select five distinct colors from the Set2 palette for visa categories
+custom_palette <- brewer.pal(n = 8, name = "Set2")[2:6] #
 ```
 
+### Map
 ```{r}
 # Create map
 ggplot() +
   geom_sf(data = world_sf, fill = "wheat", color = "snow1", linewidth = 0.25) +
   geom_sf(
-    data = bucket_sf,
-    fill = "rosybrown1",
-    color = "thistle3",
+    data = bucket_sf_with_visa,
+    aes(fill = type_visa),
+    color = "rosybrown",
     linewidth = 0.75
   ) +
   geom_sf_text(
-    data = bucket_sf,
+    data = bucket_sf_with_visa,
     aes(label = name_long),
     fontface = "bold",
     family = "Verdana",
     color = "grey4",
     size = 4,
     nudge_y = -5.2
+  ) +
+  scale_fill_manual(
+    name = "Visa Requirement (Indian Passport)",
+    # Assign the Set2 colors to each category
+    values = c(
+      "visa_free_access" = custom_palette[1],
+      "visa_online" = custom_palette[2],
+      "visa_on_arrival" = custom_palette[3],
+      "visa_required" = custom_palette[4],
+      "electronic_travel_authorisation" = custom_palette[5]
+    ),
+    labels = c(
+      "visa_free_access" = "Visa Free Access",
+      "visa_online" = "Visa Online",
+      "visa_on_arrival" = "Visa on Arrival",
+      "visa_required" = "Visa Required",
+      "electronic_travel_authorisation" = "Electronic Travel Authorisation"
+    )
   ) +
   coord_sf(xlim = c(-30, 150), ylim = c(-55, 80), expand = FALSE) +
   labs(
