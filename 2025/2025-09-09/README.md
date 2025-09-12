@@ -10,6 +10,6 @@ This visualization reflects my personal travel bucket list, built using visa acc
 | `jsonlite`      | Parsing nested JSON columns from the visa access dataset |
 | `sf`            | Handling and visualizing spatial data                    |
 | `rnaturalearth` | Accessing country-level shapefiles for map plotting      |
-| RColorBrewer    |  Color palette                                           |
+| `RColorBrewer`    |  Color palette                                           |
 
 **Data:** Henley Passport Index API \| [#TidyTuesday (2025-09-09)](https://github.com/rfordatascience/tidytuesday/blob/main/data/2025/2025-09-09/readme.md)
