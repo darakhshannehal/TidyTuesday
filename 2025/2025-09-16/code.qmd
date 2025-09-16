@@ -1,0 +1,113 @@
+---
+title: "Worceste- WHAT!?"
+format: html
+---
+
+```{r}
+# Install pacman if not already installed
+if (!requireNamespace("pacman", quietly = TRUE)) {
+  install.packages("pacman")
+}
+
+# Load required packages (install if missing)
+pacman::p_load(
+  tidyverse,
+  ggwordcloud # Word cloud plotting
+)
+
+```
+
+
+```{r}
+# Load dataset (not used in this viz, but retained for future exploration)
+all_recipes <- readr::read_csv(
+  'https://raw.githubusercontent.com/rfordatascience/tidytuesday/main/data/2025/2025-09-16/all_recipes.csv'
+)
+
+cuisines <- readr::read_csv(
+  'https://raw.githubusercontent.com/rfordatascience/tidytuesday/main/data/2025/2025-09-16/cuisines.csv'
+)
+
+```
+
+```{r}
+# Define ingredients
+weird_ingredients <- c(
+  "Worcestershire sauce",
+  "Truffle oil",
+  "Oyster sauce",
+  "Hoisin sauce",
+  "Seaweed",
+  "Spirulina",
+  "White wine",
+  "Whole beef tongue",
+  "Sauerkraut"
+)
+```
+
+
+```{r}
+# Create custom theme
+custom_theme <- theme(
+  text = element_text(family = "verdana"), # Global font
+  plot.margin = margin(10, 10, 10, 10),
+  plot.background = element_rect(fill = "ivory", color = NA),
+  panel.background = element_rect(fill = "ivory", color = NA),
+  plot.title = element_text(
+    size = 18,
+    face = "bold",
+    hjust = 0.5,
+    margin = margin(t = 30, b = 10)
+  ),
+  plot.subtitle = element_text(
+    size = 16,
+    hjust = 0.5
+  ),
+  plot.caption = element_text(
+    size = 14,
+    hjust = 0.5,
+    margin = margin(t = 10, b = 25)
+  )
+)
+```
+
+
+```{r}
+word_df <- data.frame(word = weird_ingredients) %>%
+  mutate(
+    size = if_else(word == "Worcestershire sauce", 15, 13),
+    color = if_else(
+      word == "Worcestershire sauce",
+      "royalblue4",
+      "lightsteelblue3"
+    )
+  )
+```
+
+
+```{r}
+# Generate word cloud plot
+ggplot(word_df, aes(label = word, size = size, color = color)) +
+  geom_text_wordcloud(shape = "circle") +
+  scale_size_identity() +
+  scale_color_identity() +
+  labs(
+    title = "Ingredients That Make Me Wanna Run",
+    subtitle = "Me, mid-recipe, realizing I need one of these.",
+    caption = "Inspired by: all.recipes.com | Visualization: Darakhshan Nehal"
+  ) +
+  custom_theme
+
+```
+
+```{r}
+# Save plot
+ggsave(
+  filename = "ingredients.png",
+  width = 9,
+  height = 7,
+  dpi = 300,
+  bg = "ivory"
+)
+
+```
