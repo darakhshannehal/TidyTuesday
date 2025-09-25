@@ -4,4 +4,7 @@ This week, I simulated a knockout-style chess tournament using FIDE rating data 
 
 The final plot visualizes each player's rating progression across rounds.
 
+![](chess_simulation.png)
+
+
 **Data**: International Chess Federation \| [#TidyTuesday (2025-09-23)](https://github.com/rfordatascience/tidytuesday/blob/main/data/2025/2025-09-23/readme.md)
