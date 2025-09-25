@@ -1,0 +1,232 @@
+---
+title: "Simulating Knockout Chess with FIDE Ratings"
+format: html
+---
+```{r}
+# Install pacman if not already installed
+if (!requireNamespace("pacman", quietly = TRUE)) {
+  install.packages("pacman")
+}
+
+# Load required packages (auto-installs if missing)
+pacman::p_load(
+  tidyverse, # Data wrangling, plotting, modeling
+  RColorBrewer, # Color palettes
+  tidytuesdayR # Access TidyTuesday datasets
+)
+
+```
+
+```{r}
+# Load datasets
+tuesdata <- tidytuesdayR::tt_load('2025-09-23')
+fide_ratings_august <- tuesdata$fide_ratings_august
+fide_ratings_september <- tuesdata$fide_ratings_september
+```
+
+```{r}
+# Set seed for reproducibility. This ensures that the random player selection
+# and simulation results are the same every time you run the code.
+set.seed(42)
+
+# Clean August ratings
+players_aug <- fide_ratings_august |>
+  filter(!is.na(rating)) |>
+  group_by(id) |>
+  slice_max(rating, n = 1) |>
+  ungroup() |>
+  select(id, name, rating_aug = rating)
+
+# Clean September ratings (keep fed here)
+players_sep <- fide_ratings_september |>
+  filter(!is.na(rating)) |>
+  group_by(id) |>
+  slice_max(rating, n = 1) |>
+  ungroup() |>
+  select(id, name, fed, rating_sep = rating)
+```
+
+```{r}
+# Join August and September ratings by player ID and name
+players_combined <- inner_join(
+  players_aug,
+  players_sep,
+  by = c("id", "name")
+) |>
+  mutate(rating_drift = rating_sep - rating_aug) # Calculate the change in rating from August to September.
+
+```
+
+```{r}
+# Select 8 players for the simulation tournament.
+# sample_n() randomly selects a specified number of rows.
+players <- players_combined |>
+  sample_n(8) |>
+  select(name, fed, rating = rating_sep, rating_drift)
+
+```
+
+```{r}
+# Define the simulation function for a single chess match.
+# This function calculates the probability of winning based on Elo ratings
+# and then simulates the outcome using a random number.
+
+simulate_match <- function(p1, p2) {
+  # Calculate Player 1's winning probability using the Elo rating formula.
+  prob1 <- 1 / (1 + 10^((p2$rating - p1$rating) / 400))
+
+  # Simulate the outcome: if a random number is less than the probability, Player 1 wins.
+  # Otherwise, Player 2 wins (we are ignoring draws for this basic simulation).
+  winner <- if (runif(1) < prob1) p1 else p2
+
+  # Return the winner's information as a tibble.
+  tibble(
+    id = winner$id,
+    name = winner$name,
+    fed = winner$fed,
+    rating = winner$rating,
+    rating_drift = winner$rating_drift
+  )
+}
+```
+
+```{r}
+# --- Simulate the Tournament ---
+
+# Round 1 — Quarterfinals
+# split() divides the players into a list of 4 pairs.
+round1_pairs <- split(players, rep(1:4, each = 2))
+
+# map() applies the simulate_match function to each pair, and bind_rows() combines
+# the results into a single data frame of winners.
+round1_winners <- map(round1_pairs, ~ simulate_match(.x[1, ], .x[2, ])) |>
+  bind_rows()
+
+# Round 2 — Semifinals
+# The winners of Round 1 are now paired for the Semifinals.
+round2_pairs <- split(round1_winners, rep(1:2, each = 2))
+
+round2_winners <- map(round2_pairs, ~ simulate_match(.x[1, ], .x[2, ])) |>
+  bind_rows()
+
+# Final — Champion
+champion <- simulate_match(round2_winners[1, ], round2_winners[2, ])
+
+# Print champion details
+cat("\n🏆 Champion:", champion$name, "from", champion$fed, "\n")
+cat("📈 Rating Drift from August:", champion$rating_drift, "\n")
+
+```
+
+## 📈 Prepare Data for Plotting 
+
+```{r}
+# Combine all rounds into a single tournament log
+tournament_log <- bind_rows(
+  players |> mutate(round = "Quarterfinals"),
+  round1_winners |> mutate(round = "Semifinals"),
+  round2_winners |> mutate(round = "Final"),
+  champion |> mutate(round = "Champion")
+)
+
+# Order rounds for plotting
+tournament_log$round <- factor(
+  tournament_log$round,
+  levels = c("Quarterfinals", "Semifinals", "Final", "Champion")
+)
+
+```
+
+```{r}
+# Create a custom theme
+custom_theme <- theme_minimal() +
+  theme(
+    panel.background = element_rect(fill = "burlywood2", color = NA),
+    plot.background = element_rect(fill = "burlywood2", color = NA),
+    panel.grid.major.x = element_line(colour = "burlywood", linewidth = 0.5),
+    panel.grid.major.y = element_line(
+      colour = "burlywood",
+      linetype = "dotted",
+      linewidth = 0.85
+    ),
+    panel.grid.minor = element_blank(),
+    legend.position = "bottom",
+    legend.title.position = "top",
+    legend.title = element_text(size = 11, hjust = 0.5),
+    legend.text = element_text(size = 10, face = "bold"),
+    text = element_text(family = "Verdana"), # Global Verdana font
+    axis.text = element_text(size = 11, face = "bold"),
+    axis.title = element_text(size = 13),
+    plot.title = element_text(
+      size = 20,
+      face = "bold",
+      hjust = 0.5,
+      margin = margin(t = 5, b = 10)
+    ),
+    plot.subtitle = element_text(
+      size = 12,
+      hjust = 0.5,
+      margin = margin(b = 20)
+    ),
+    plot.caption = element_text(
+      size = 10,
+      hjust = 0.5,
+      margin = margin(t = 10, b = 20)
+    ),
+    plot.margin = margin(t = 20, l = 10)
+  )
+
+```
+
+```{r}
+# Create a custom color palette for the federations.
+# display.brewer.all()  # View all available RColorBrewer palettes
+
+# Using `n=7` ensures you get the first 7 colors from the Set1 palette.
+set1_colors <- brewer.pal(n = 7, name = "Set1")
+
+# Get the list of unique federations in the tournament log.
+unique_feds <- unique(tournament_log$fed)
+
+# Create a named vector that maps each federation to a specific color.
+fed_colors <- setNames(set1_colors[1:length(unique_feds)], unique_feds)
+
+```
+
+```{r}
+# Plot
+tournament_log |>
+  ggplot(aes(x = round, y = rating, group = name)) +
+  geom_line(aes(color = fed), linewidth = 1) +
+  geom_point(aes(color = fed), size = 3) +
+  geom_text(
+    aes(label = name, color = fed),
+    vjust = -1,
+    size = 4.2,
+    fontface = "bold",
+    show.legend = FALSE
+  ) +
+  scale_color_manual(values = fed_colors) +
+  labs(
+    title = "Hunger Games of Chess",
+    subtitle = "Simulating Knockout Chess with FIDE Ratings: Eight players, four rounds, one champion.\nExploring rating drift and probabilistic match outcomes",
+    caption = "Data: International Chess Federation | Visualization: Darakhshan Nehal",
+    x = NULL,
+    y = "FIDE Rating",
+    color = "Federation"
+  ) +
+  guides(color = guide_legend(nrow = 1)) +
+  custom_theme
+
+```
+
+```{r}
+# Save plot
+ggsave(
+  filename = "chess_simulation.png",
+  width = 12, #  Width in inches
+  height = 8, #  Height in inches
+  dpi = 300, #  For High-resolution
+  bg = "burlywood2"
+)
+```
