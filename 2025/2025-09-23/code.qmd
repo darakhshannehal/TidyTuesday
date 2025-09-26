@@ -14,12 +14,11 @@ pacman::p_load(
   RColorBrewer, # Color palettes
   tidytuesdayR # Access TidyTuesday datasets
 )
-
 ```
 
 ```{r}
 # Load datasets
-tuesdata <- tidytuesdayR::tt_load('2025-09-23')
+tuesdata <- tidytuesdayR::tt_load("2025-09-23")
 fide_ratings_august <- tuesdata$fide_ratings_august
 fide_ratings_september <- tuesdata$fide_ratings_september
 ```
@@ -54,7 +53,6 @@ players_combined <- inner_join(
   by = c("id", "name")
 ) |>
   mutate(rating_drift = rating_sep - rating_aug) # Calculate the change in rating from August to September.
-
 ```
 
 ```{r}
@@ -63,7 +61,6 @@ players_combined <- inner_join(
 players <- players_combined |>
   sample_n(8) |>
   select(name, fed, rating = rating_sep, rating_drift)
-
 ```
 
 ```{r}
@@ -115,11 +112,9 @@ champion <- simulate_match(round2_winners[1, ], round2_winners[2, ])
 # Print champion details
 cat("\n🏆 Champion:", champion$name, "from", champion$fed, "\n")
 cat("📈 Rating Drift from August:", champion$rating_drift, "\n")
-
 ```
 
 ## 📈 Prepare Data for Plotting 
-
 ```{r}
 # Combine all rounds into a single tournament log
 tournament_log <- bind_rows(
@@ -134,7 +129,6 @@ tournament_log$round <- factor(
   tournament_log$round,
   levels = c("Quarterfinals", "Semifinals", "Final", "Champion")
 )
-
 ```
 
 ```{r}
@@ -175,14 +169,13 @@ custom_theme <- theme_minimal() +
     ),
     plot.margin = margin(t = 20, l = 10)
   )
-
 ```
 
 ```{r}
 # Create a custom color palette for the federations.
 # display.brewer.all()  # View all available RColorBrewer palettes
 
-# Using `n=7` ensures you get the first 7 colors from the Set1 palette.
+# Using n=7 ensures you get the first 7 colors from the Set1 palette.
 set1_colors <- brewer.pal(n = 7, name = "Set1")
 
 # Get the list of unique federations in the tournament log.
@@ -190,7 +183,6 @@ unique_feds <- unique(tournament_log$fed)
 
 # Create a named vector that maps each federation to a specific color.
 fed_colors <- setNames(set1_colors[1:length(unique_feds)], unique_feds)
-
 ```
 
 ```{r}
@@ -217,7 +209,6 @@ tournament_log |>
   ) +
   guides(color = guide_legend(nrow = 1)) +
   custom_theme
-
 ```
 
 ```{r}
