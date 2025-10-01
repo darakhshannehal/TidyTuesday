@@ -16,4 +16,4 @@ This visualization highlights ecological shifts in September–October arrivals 
 | **scales**       | Axis formatting (comma labels for counts)     |
 
 
-**Data**: Transtatistik, Naturum Hornborgasjön\| [#TidyTuesday (2025-09-30)](https://github.com/rfordatascience/tidytuesday/blob/main/data/2025/2025-09-30/readme.md)
+**Data**: Transtatistik, Naturum Hornborgasjön | [#TidyTuesday (2025-09-30)](https://github.com/rfordatascience/tidytuesday/blob/main/data/2025/2025-09-30/readme.md)
