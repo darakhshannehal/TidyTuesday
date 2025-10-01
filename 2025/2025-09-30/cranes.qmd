@@ -1,0 +1,166 @@
+---
+title: "What happened after 2002 at Lake Hornborgasjön, Sweden?"
+format: html
+---
+
+```{r}
+# Install pacman if not already installed
+if (!requireNamespace("pacman", quietly = TRUE)) {
+  install.packages("pacman")
+}
+
+# Load required packages (auto-installs if missing)
+pacman::p_load(
+  tidyverse, # Data wrangling, plotting, modeling
+  RColorBrewer, # Color palettes
+  skimr # Data summary
+)
+```
+
+```{r}
+# Load Dataset
+cranes <- readr::read_csv(
+  'https://raw.githubusercontent.com/rfordatascience/tidytuesday/main/data/2025/2025-09-30/cranes.csv'
+)
+```
+
+```{r}
+glimpse(cranes)
+
+skim(cranes) # 10% of observations are missing
+```
+
+```{r}
+# Check duplicates
+sum(duplicated(cranes))
+
+# View duplicated row
+cranes[duplicated(cranes), ]
+
+# Remove duplicate
+cranes <- cranes |>
+  distinct()
+```
+
+```{r}
+# Analyze the missing data (NA values in 'observations').
+cranes |>
+  filter(is.na(observations)) |>
+  count(
+    month = lubridate::month(date, label = TRUE),
+    weather_disruption,
+    comment
+  )
+
+cranes |>
+  filter(is.na(observations)) |>
+  count(weather_disruption, comment)
+```
+
+## Prepare for Visualization
+```{r}
+# Create custom theme
+custom_theme <- theme_minimal() +
+  theme(
+    panel.background = element_rect(fill = "azure", color = NA),
+    plot.background = element_rect(fill = "azure", color = NA),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor = element_blank(),
+    legend.position = "none",
+    strip.text = element_text(size = 10, face = "bold"),
+    panel.spacing = unit(2, "lines"), # space between facets
+    text = element_text(family = "Verdana"), # Global Verdana font
+    axis.text = element_text(size = 10, face = "bold"),
+    axis.title = element_text(size = 12),
+    plot.title = element_text(
+      size = 17,
+      face = "bold",
+      hjust = 0,
+      margin = margin(t = 5, b = 8)
+    ),
+    plot.margin = margin(t = 15, r = 15, b = 15, l = 15),
+    plot.subtitle = element_text(
+      size = 12,
+      hjust = 0,
+      margin = margin(b = 20)
+    ),
+    plot.caption = element_text(
+      size = 11,
+      hjust = 0,
+      face = "italic",
+      margin = margin(t = 20, b = 10)
+    )
+  )
+```
+
+```{r}
+# Monthly mean crane counts
+cranes_monthly <- cranes |>
+  filter(!is.na(observations)) |>
+  mutate(
+    year = lubridate::year(date),
+    month = month(date, label = TRUE, abbr = FALSE)
+  ) |>
+  group_by(year, month) |>
+  summarise(mean_count = mean(observations), .groups = "drop")
+
+# Filter for the key months of interest
+cranes_focus <- cranes_monthly |>
+  filter(month %in% c("March", "April", "September", "October"))
+
+# Shading for pre-2002 absence
+## This visually highlights the period (pre-2002) when autumn records were absent
+shade_df <- data.frame(
+  month = factor(
+    c("September", "October"),
+    levels = levels(cranes_focus$month)
+  ),
+  xmin = 1994,
+  xmax = 2002,
+  ymin = -Inf,
+  ymax = Inf
+)
+```
+
+```{r}
+# Create plot
+ggplot(cranes_focus, aes(x = year, y = mean_count, color = month)) +
+  geom_rect(
+    data = shade_df,
+    aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
+    inherit.aes = FALSE,
+    fill = "grey90",
+    alpha = 0.5
+  ) +
+  geom_line(linewidth = 0.85) +
+  facet_wrap(~month, ncol = 2, scales = "free_y") +
+  geom_vline(
+    xintercept = c(2011),
+    linetype = "dotted",
+    color = "grey40"
+  ) +
+  scale_color_brewer(palette = "Set2") +
+  scale_y_continuous(labels = scales::comma) +
+  labs(
+    title = "What happened after 2002 at Lake Hornborgasjön, Sweden?",
+    subtitle = str_wrap(
+      "No September–October records exist before 2002. Since 2012, crane counts in September rose sharply, suggesting shifts in migration timing, possibly influenced by conservation efforts, warmer autumns due to climate change, post-harvest field availability, and improved monitoring strategies.",
+      width = 100
+    ),
+    x = NULL,
+    y = "Mean Crane Count",
+    caption = "Data: Transtatistik, Naturum Hornborgasjön | Visualization: Darakhshan Nehal\nNote: NA values reflect cancelled counts, with weather disruption being one reason. These do not imply crane \nabsence. Absence of records before September–October 2002 may reflect low crane presence, scattered arrivals, \nor limited monitoring."
+  ) +
+  custom_theme
+```
+
+```{r}
+# Save plot
+ggsave(
+  filename = "cranes.png",
+  width = 10, #  Width in inches
+  height = 7.5, #  Height in inches
+  dpi = 300, #  For High-resolution
+  bg = "azure"
+)
+```
